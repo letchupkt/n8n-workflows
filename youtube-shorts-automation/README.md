@@ -1,5 +1,11 @@
 ## 🤖 Multi-Channel YouTube Shorts Automation Workflow (n8n)
 
+<img width="1137" height="831" alt="image" src="https://github.com/user-attachments/assets/f4be4ebf-d1e4-48fe-8797-21a6eb5a5bc2" />
+
+<img width="1483" height="836" alt="image" src="https://github.com/user-attachments/assets/569a8d13-cf5c-43b9-b313-8270b0e34c70" />
+
+
+
 This n8n workflow automates the entire process of creating, generating, and publishing YouTube Shorts for **three distinct YouTube channels** in parallel every day.
 
 The workflow leverages Google Gemini to write the script/metadata and an external Video Generation API (Veo 3, as inferred from the node names/URLs) to produce the video file, followed by uploading the video to YouTube and logging the result to Google Sheets.

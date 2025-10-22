@@ -1,0 +1,1728 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "d9dad26b-9ceb-4702-8e55-60a580789fb0",
+      "name": "Daily Trigger 9AM IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2560,
+        35
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "channelName",
+              "value": "MindRift"
+            },
+            {
+              "name": "channelNiche",
+              "value": "Motivational"
+            },
+            {
+              "name": "geminiApiKey",
+              "value": "AIzaSyD93B728-1hNjxJrKxeFCgnh0e9NGxeoaI"
+            },
+            {
+              "name": "veo3ApiKey",
+              "value": "AIzaSyD93B728-1hNjxJrKxeFCgnh0e9NGxeoaI"
+            },
+            {
+              "name": "veo3ProjectId",
+              "value": "gen-lang-client-0589284990"
+            },
+            {
+              "name": "sheetsId",
+              "value": "YOUR_GOOGLE_SHEETS_ID_HERE"
+            },
+            {
+              "name": "notificationEmail",
+              "value": "mindrift2006@example.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9789b45b-a5e5-4c17-b89e-c58c0ed9f5d7",
+      "name": "Config Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -2340,
+        35
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Function node code\n// It reads the first input's .json.output (same as $input.first().json.output),\n// extracts JSON (inside ```json ... ``` or the first {...} block), parses it,\n// and returns the parsed object so next nodes can use fields like title/script.\n\nconst raw = (typeof $input === 'function' && $input().first && $input().first().json && $input().first().json.output)\n  ? $input().first().json.output\n  : (items && items[0] && items[0].json && items[0].json.output) || '';\n\n// Helper: try to extract JSON block between triple backticks or fallback to first {...}\nfunction extractJsonText(s) {\n  if (!s || typeof s !== 'string') return null;\n\n  // 1) Try to match ```json ... ``` (non-greedy)\n  const fenced = s.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  if (fenced && fenced[1]) {\n    return fenced[1].trim();\n  }\n\n  // 2) Fallback: find the first {...} JSON-looking block\n  const braceMatch = s.match(/\\{[\\s\\S]*\\}/);\n  if (braceMatch) {\n    return braceMatch[0];\n  }\n\n  // Nothing found\n  return null;\n}\n\nlet parsed = null;\nlet extracted = extractJsonText(raw);\n\nif (!extracted) {\n  // If nothing to parse, return raw as output for debugging\n  return [{ json: { error: 'No JSON found in input.output', raw } }];\n}\n\ntry {\n  // Some sources include Markdown-escaped quotes or extra backslashes.\n  // Ensure we handle a common case where the extracted text itself is wrapped in triple quotes or fenced.\n  // Trim and try to parse directly.\n  const cleaned = extracted.trim();\n\n  parsed = JSON.parse(cleaned);\n} catch (err) {\n  // If direct JSON.parse fails, try a safe 'unescape' pass (replace escaped newlines, etc.)\n  try {\n    // Replace common escape sequences that may be doubled (e.g. \"\\\\n\" => \"\\n\")\n    const unescaped = extracted\n      .replace(/\\\\n/g, '\\n')\n      .replace(/\\\\t/g, '\\t')\n      .replace(/\\\\r/g, '\\r')\n      .replace(/\\\\\"/g, '\"');\n\n    parsed = JSON.parse(unescaped);\n  } catch (err2) {\n    // Final fallback: return the extracted text and the error for debugging\n    return [{ json: { error: 'Failed to parse JSON', message: err2.message, extracted } }];\n  }\n}\n\n// Return parsed object so downstream nodes can access e.g. result.title, result.script\nreturn [{ json: parsed }];\n"
+      },
+      "id": "84d71ec9-58f7-479b-9484-dc70c600625a",
+      "name": "Parse & Format Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1744,
+        35
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://videogeneration.googleapis.com/v1/projects/{{ $json.veo3ProjectId }}/locations/us-central1/videos:generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.veo3ApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"project_id\": \"={{ $('Config Variables1').item.json.veo3ProjectId }}\",\n  \"title\": \"={{ $json.title }}\",\n  \"script\": \"={{ $json.script }}\",\n  \"voice\": \"neural_male_2\",\n  \"background_music\": true,\n  \"captions\": true,\n  \"aspect_ratio\": \"9:16\",\n  \"language\": \"en\",\n  \"auto_edit\": true,\n  \"music_style\": \"epic_inspirational\",\n  \"tone\": \"motivational\",\n  \"video_theme\": \"sunrise_success_focus\"\n}\n",
+        "options": {}
+      },
+      "id": "91fd34d8-3ac6-4d40-8959-d2a63b4d4edc",
+      "name": "Start Video Generation (Veo 3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1524,
+        35
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Hbt14NyRX4gxLQ4y",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract operation ID and preserve data\nconst veoResponse = $input.first().json;\nconst contentData = $node['Parse & Format Content'].first().json;\n\nreturn {\n  ...contentData,\n  operationId: veoResponse.name || veoResponse.operationId,\n  operationUrl: `https://videogeneration.googleapis.com/v1/${veoResponse.name || veoResponse.operationId}`\n};"
+      },
+      "id": "7fba88ee-87c0-4cf9-9377-eefc7e1fbbf7",
+      "name": "Save Operation ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1304,
+        35
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 45,
+        "unit": "seconds"
+      },
+      "id": "7d4d55ef-6bf2-47b5-9bf3-803c1ca35e31",
+      "name": "Wait 45s (Initial)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -1084,
+        35
+      ],
+      "webhookId": "veo3-wait-initial"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.operationUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.veo3ApiKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "42b37c5b-4fc2-4397-857c-6a17c23a7c0d",
+      "name": "Check Video Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -864,
+        35
+      ],
+      "retryOnFail": true,
+      "maxTries": 15,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.done }}",
+              "operation": "equals",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "cce78e02-a6fd-4e06-aed1-350121eba155",
+      "name": "Is Video Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -644,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "808eb46c-a9db-4d2b-81e8-629b32983547",
+      "name": "Wait 30s (Retry)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -424,
+        135
+      ],
+      "webhookId": "veo3-wait-retry"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge status check with original data\nconst statusData = $input.first().json;\nconst originalData = $node['Save Operation ID'].first().json;\n\nif (!statusData.response || !statusData.response.videoUri) {\n  throw new Error('Video generation failed - no video URL in response');\n}\n\nreturn {\n  ...originalData,\n  videoUrl: statusData.response.videoUri,\n  videoDownloadUrl: statusData.response.downloadUri || statusData.response.videoUri\n};"
+      },
+      "id": "2cba1c23-aad1-4851-9b74-ce75e5074ab5",
+      "name": "Extract Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -424,
+        -90
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.videoDownloadUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "video"
+            }
+          }
+        }
+      },
+      "id": "20a2fc0a-e47e-487d-a25e-dec5de9c4c61",
+      "name": "Download Video File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -204,
+        -90
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.title }}",
+        "regionCode": "IN",
+        "categoryId": "22",
+        "options": {}
+      },
+      "id": "76ea8a6f-2e9e-41af-a7b7-7f6d3e3749e7",
+      "name": "Upload to YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -90
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "C7AO95UMhjATeD8y",
+          "name": "MindRift"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for Google Sheets\nconst uploadResult = $input.first().json;\nconst videoData = $node['Extract Video URL'].first().json;\n\nconst videoId = uploadResult.id;\nconst videoUrl = `https://youtube.com/shorts/${videoId}`;\n\nreturn {\n  'Channel Name': videoData.channelName,\n  'Video Title': videoData.title,\n  'Video Description': videoData.description.substring(0, 150) + '...',\n  'Video URL': videoUrl,\n  'Upload Timestamp': new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),\n  'Status': '✅ Done',\n  'Video ID': videoId\n};"
+      },
+      "id": "0f5c4e7d-a1e4-4cbb-b384-52c0aaf8815e",
+      "name": "Format for Logging",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        236,
+        -90
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $node['Config Variables'].json.sheetsId }}",
+        "sheetName": "Upload Log",
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "id": "27c48cf8-33fc-4378-9dee-9b3aa3a51ad4",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        456,
+        -90
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "fromEmail": "lakshmikanthank2006@gmail.com",
+        "toEmail": "={{ $node['Config Variables'].json.notificationEmail }}",
+        "subject": "=✅ YouTube Short Published - {{ $json['Channel Name'] }}",
+        "options": {}
+      },
+      "id": "587c411e-e694-4f19-8088-ee632012294f",
+      "name": "Success Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        676,
+        -90
+      ],
+      "webhookId": "c6982219-75d4-4eda-a91c-89a31c8713cc",
+      "credentials": {}
+    },
+    {
+      "parameters": {},
+      "id": "0a8be7d3-d6ef-4ba9-8b55-038ada3366fe",
+      "name": "On Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2180,
+        1640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format error details\nconst error = $input.first().json;\n\nreturn {\n  errorMessage: error.error?.message || 'Unknown error',\n  errorNode: error.error?.node?.name || 'Unknown node',\n  errorTime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),\n  workflowName: $workflow.name,\n  notificationEmail: $node['Config Variables'].json.notificationEmail\n};"
+      },
+      "id": "0024f3e3-2004-4f8e-b9f9-fb9aa9ea44b9",
+      "name": "Format Error Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1960,
+        1640
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "automation@yourdomain.com",
+        "toEmail": "={{ $json.notificationEmail }}",
+        "subject": "=❌ YouTube Automation Failed - {{ $json.workflowName }}",
+        "options": {}
+      },
+      "id": "db13bfd0-920e-4f59-9326-b2540a0c8d0e",
+      "name": "Error Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        -1740,
+        1640
+      ],
+      "webhookId": "5eca351c-5754-4a18-a1ee-453d9467ae43",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "channelName",
+              "value": "CyberPulse"
+            },
+            {
+              "name": "channelNiche",
+              "value": "Ai/Tech/Hacking"
+            },
+            {
+              "name": "geminiApiKey",
+              "value": "AIzaSyD93B728-1hNjxJrKxeFCgnh0e9NGxeoaI"
+            },
+            {
+              "name": "veo3ApiKey",
+              "value": "AIzaSyD93B728-1hNjxJrKxeFCgnh0e9NGxeoaI"
+            },
+            {
+              "name": "veo3ProjectId",
+              "value": "gen-lang-client-0589284990"
+            },
+            {
+              "name": "sheetsId",
+              "value": "YOUR_GOOGLE_SHEETS_ID_HERE"
+            },
+            {
+              "name": "notificationEmail",
+              "value": "cyberpulse2006@example.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "020396f9-b72b-41a4-946c-e3956cbc0e8a",
+      "name": "Config Variables1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -2340,
+        -820
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI (Gemini or Veo3) JSON response and format it cleanly for downstream nodes\n\nconst response = $input.first().json;\nconst config = $input.first().json.output;\n\n// Extract and parse JSON safely\nlet content;\n\ntry {\n  // Access main AI text response\n  const text = response.output || response.candidates?.[0]?.content?.parts?.[0]?.text || \"\";\n\n  // Clean markdown or code fences (```json ... ```)\n  const cleanText = text\n    .replace(/```json\\s*/gi, \"\")\n    .replace(/```/g, \"\")\n    .trim();\n\n  // Parse JSON object\n  content = JSON.parse(cleanText);\n} catch (error) {\n  throw new Error(\"Failed to parse AI response JSON: \" + error.message);\n}\n\n// Build a smart YouTube-ready description\nconst description = `${content.script}\\n\\n${content.hashtags || \"\"}\\n\\n` +\n  `🔔 SUBSCRIBE for more amazing content!\\n` +\n  `💪 Turn on notifications to never miss a video!\\n\\n` +\n  `${content.hashtags || \"\"}`;\n\n// Final structured return\nreturn {\n  channelName: config.channelName,\n  title: content.title || \"Untitled Video\",\n  script: content.script || \"\",\n  hook: content.hook || \"\",\n  description: description,\n  tags: content.tags || [],\n  hashtags: content.hashtags || \"\",\n  veo3ProjectId: config.veo3ProjectId,\n  veo3ApiKey: config.veo3ApiKey,\n  timestamp: new Date().toISOString(),\n};\n"
+      },
+      "id": "f689bb9d-6291-4c8c-9bd2-7fc28f7c64d7",
+      "name": "Parse & Format Content1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        -820
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://videogeneration.googleapis.com/v1/projects/{{ $('Config Variables1').item.json.veo3ProjectId }}/locations/us-central1/videos:generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Config Variables1').item.json.veo3ApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  project_id: {{ $('Config Variables1').item.json.veo3ProjectId }},\n  title: {{ $json.title }},\n  script:{{ $json.script }} ,\n  voice: \"neural_male_1\",\n  background_music: true,\n  captions: true,\n  aspect_ratio: \"9:16\",\n  language: \"en\",\n  auto_edit: true\n}\n",
+        "options": {}
+      },
+      "id": "604d42dc-6e12-4740-b2c9-89f49c91b378",
+      "name": "Start Video Generation (Veo 3)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1540,
+        -820
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Hbt14NyRX4gxLQ4y",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract operation ID and preserve data\nconst veoResponse = $input.first().json;\nconst contentData = $node['Parse & Format Content1'].first().json;\n\nreturn {\n  ...contentData,\n  operationId: veoResponse.name || veoResponse.operationId,\n  operationUrl: `https://videogeneration.googleapis.com/v1/${veoResponse.name || veoResponse.operationId}`\n};"
+      },
+      "id": "4d879b4e-68e4-4f73-bfbc-c7ee6d9d4986",
+      "name": "Save Operation ID1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        -820
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 45,
+        "unit": "seconds"
+      },
+      "id": "5395e432-65fb-4d64-a85f-188b676ebfb1",
+      "name": "Wait 45s (Initial)1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -1100,
+        -820
+      ],
+      "webhookId": "veo3-wait-initial"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.operationUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.veo3ApiKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "37fbf309-5a3f-4c8d-be22-9c3d7a18b051",
+      "name": "Check Video Status1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -880,
+        -820
+      ],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.done }}",
+              "operation": "equals",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "4074d35e-b65d-4551-9f21-187b82ace0b7",
+      "name": "Is Video Ready?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -660,
+        -900
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "13216488-47f0-4416-8852-babea2ed3293",
+      "name": "Wait 30s (Retry)1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        -720
+      ],
+      "webhookId": "veo3-wait-retry"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge status check with original data\nconst statusData = $input.first().json;\nconst originalData = $node['Save Operation ID1'].first().json;\n\nif (!statusData.response || !statusData.response.videoUri) {\n  throw new Error('Video generation failed - no video URL in response');\n}\n\nreturn {\n  ...originalData,\n  videoUrl: statusData.response.videoUri,\n  videoDownloadUrl: statusData.response.downloadUri || statusData.response.videoUri\n};"
+      },
+      "id": "1d3ee987-ab2f-4c7c-8239-f0b754106d4f",
+      "name": "Extract Video URL1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        -940
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.videoDownloadUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "video"
+            }
+          }
+        }
+      },
+      "id": "ee15b286-4fb4-42d2-8ba8-dc3c362ef37e",
+      "name": "Download Video File1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -220,
+        -940
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.title }}",
+        "regionCode": "IN",
+        "categoryId": "22",
+        "options": {}
+      },
+      "id": "c77e32e9-4105-4d92-9625-3adfc31afafb",
+      "name": "Upload to YouTube1",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -940
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "FIOgNXuLreDy3Ift",
+          "name": "CyberPulse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for Google Sheets\nconst uploadResult = $input.first().json;\nconst videoData = $node['Extract Video URL1'].first().json;\n\nconst videoId = uploadResult.id;\nconst videoUrl = `https://youtube.com/shorts/${videoId}`;\n\nreturn {\n  'Channel Name': videoData.channelName,\n  'Video Title': videoData.title,\n  'Video Description': videoData.description.substring(0, 150) + '...',\n  'Video URL': videoUrl,\n  'Upload Timestamp': new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),\n  'Status': '✅ Done',\n  'Video ID': videoId\n};"
+      },
+      "id": "1fea3dc4-affc-43b9-9ecd-8614d008b645",
+      "name": "Format for Logging1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        -940
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $node['Config Variables1'].json.sheetsId }}",
+        "sheetName": "Upload Log",
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "id": "905dc2d4-15e3-4235-82bb-521c8ed08e00",
+      "name": "Log to Google Sheets1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        440,
+        -940
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5M05KBuhK3CdA65f",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "lakshmikanthank2006@gmail.com",
+        "toEmail": "={{ $node['Config Variables1'].json.notificationEmail }}",
+        "subject": "=✅ YouTube Short Published - {{ $json['Channel Name'] }}",
+        "options": {}
+      },
+      "id": "41805139-c1a0-4309-b5f1-932abd184339",
+      "name": "Success Email Notification1",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        660,
+        -940
+      ],
+      "webhookId": "c6982219-75d4-4eda-a91c-89a31c8713cc",
+      "credentials": {
+        "smtp": {
+          "id": "NzbxalDeLK79qm9I",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "channelName",
+              "value": "WealthOrbit"
+            },
+            {
+              "name": "channelNiche",
+              "value": "Financial/Side Hustle"
+            },
+            {
+              "name": "geminiApiKey",
+              "value": "AIzaSyD93B728-1hNjxJrKxeFCgnh0e9NGxeoaI"
+            },
+            {
+              "name": "veo3ApiKey",
+              "value": "AIzaSyD93B728-1hNjxJrKxeFCgnh0e9NGxeoaI"
+            },
+            {
+              "name": "veo3ProjectId",
+              "value": "gen-lang-client-0589284990"
+            },
+            {
+              "name": "sheetsId",
+              "value": "YOUR_GOOGLE_SHEETS_ID_HERE"
+            },
+            {
+              "name": "notificationEmail",
+              "value": "wealthorbit2006@example.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9d703c36-f682-47b6-9dd1-c7db89e22eec",
+      "name": "Config Variables2",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -2340,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Function node code\n// It reads the first input's .json.output (same as $input.first().json.output),\n// extracts JSON (inside ```json ... ``` or the first {...} block), parses it,\n// and returns the parsed object so next nodes can use fields like title/script.\n\nconst raw = (typeof $input === 'function' && $input().first && $input().first().json && $input().first().json.output)\n  ? $input().first().json.output\n  : (items && items[0] && items[0].json && items[0].json.output) || '';\n\n// Helper: try to extract JSON block between triple backticks or fallback to first {...}\nfunction extractJsonText(s) {\n  if (!s || typeof s !== 'string') return null;\n\n  // 1) Try to match ```json ... ``` (non-greedy)\n  const fenced = s.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  if (fenced && fenced[1]) {\n    return fenced[1].trim();\n  }\n\n  // 2) Fallback: find the first {...} JSON-looking block\n  const braceMatch = s.match(/\\{[\\s\\S]*\\}/);\n  if (braceMatch) {\n    return braceMatch[0];\n  }\n\n  // Nothing found\n  return null;\n}\n\nlet parsed = null;\nlet extracted = extractJsonText(raw);\n\nif (!extracted) {\n  // If nothing to parse, return raw as output for debugging\n  return [{ json: { error: 'No JSON found in input.output', raw } }];\n}\n\ntry {\n  // Some sources include Markdown-escaped quotes or extra backslashes.\n  // Ensure we handle a common case where the extracted text itself is wrapped in triple quotes or fenced.\n  // Trim and try to parse directly.\n  const cleaned = extracted.trim();\n\n  parsed = JSON.parse(cleaned);\n} catch (err) {\n  // If direct JSON.parse fails, try a safe 'unescape' pass (replace escaped newlines, etc.)\n  try {\n    // Replace common escape sequences that may be doubled (e.g. \"\\\\n\" => \"\\n\")\n    const unescaped = extracted\n      .replace(/\\\\n/g, '\\n')\n      .replace(/\\\\t/g, '\\t')\n      .replace(/\\\\r/g, '\\r')\n      .replace(/\\\\\"/g, '\"');\n\n    parsed = JSON.parse(unescaped);\n  } catch (err2) {\n    // Final fallback: return the extracted text and the error for debugging\n    return [{ json: { error: 'Failed to parse JSON', message: err2.message, extracted } }];\n  }\n}\n\n// Return parsed object so downstream nodes can access e.g. result.title, result.script\nreturn [{ json: parsed }];\n"
+      },
+      "id": "7891b765-14f4-4272-815f-625649bcec03",
+      "name": "Parse & Format Content2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1740,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://videogeneration.googleapis.com/v1/projects/{{ $json.veo3ProjectId }}/locations/us-central1/videos:generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.veo3ApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"project_id\": \"={{ $('Config Variables1').item.json.veo3ProjectId }}\",\n  \"title\": \"={{ $json.title }}\",\n  \"script\": \"={{ $json.script }}\",\n  \"voice\": \"neural_male_1\",\n  \"background_music\": true,\n  \"captions\": true,\n  \"aspect_ratio\": \"9:16\",\n  \"language\": \"en\",\n  \"auto_edit\": true,\n  \"music_style\": \"calm_inspiring\",\n  \"tone\": \"educational_trustworthy\",\n  \"video_theme\": \"minimal_finance_growth\"\n}\n",
+        "options": {}
+      },
+      "id": "27f500c6-bc69-43d8-9675-a03e5c628181",
+      "name": "Start Video Generation (Veo 3)2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1520,
+        960
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract operation ID and preserve data\nconst veoResponse = $input.first().json;\nconst contentData = $node['Parse & Format Content2'].first().json;\n\nreturn {\n  ...contentData,\n  operationId: veoResponse.name || veoResponse.operationId,\n  operationUrl: `https://videogeneration.googleapis.com/v1/${veoResponse.name || veoResponse.operationId}`\n};"
+      },
+      "id": "064a2f88-d6f0-4489-8701-5c03a334a095",
+      "name": "Save Operation ID2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1300,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 45,
+        "unit": "seconds"
+      },
+      "id": "a383b3d5-7012-4615-a986-f24024716e83",
+      "name": "Wait 45s (Initial)2",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -1080,
+        960
+      ],
+      "webhookId": "veo3-wait-initial"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.operationUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.veo3ApiKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "676b26b9-00cf-4b01-8eba-212864c05263",
+      "name": "Check Video Status2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -860,
+        960
+      ],
+      "retryOnFail": true,
+      "maxTries": 15,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.done }}",
+              "operation": "equals",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "163c9a8e-0e85-4ed2-8c20-72fb0b622c37",
+      "name": "Is Video Ready?2",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "9571f892-47aa-41a3-9318-bda81998b1d1",
+      "name": "Wait 30s (Retry)2",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        1060
+      ],
+      "webhookId": "veo3-wait-retry"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge status check with original data\nconst statusData = $input.first().json;\nconst originalData = $node['Save Operation ID2'].first().json;\n\nif (!statusData.response || !statusData.response.videoUri) {\n  throw new Error('Video generation failed - no video URL in response');\n}\n\nreturn {\n  ...originalData,\n  videoUrl: statusData.response.videoUri,\n  videoDownloadUrl: statusData.response.downloadUri || statusData.response.videoUri\n};"
+      },
+      "id": "c94fd60d-4580-40e5-8fc4-3ed7ecae1856",
+      "name": "Extract Video URL2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        840
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.videoDownloadUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "video"
+            }
+          }
+        }
+      },
+      "id": "0ce3f556-fd31-4197-a2d7-73ce7ac35123",
+      "name": "Download Video File2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        840
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.title }}",
+        "regionCode": "IN",
+        "categoryId": "22",
+        "options": {}
+      },
+      "id": "1f12c6c3-871c-474d-bb3b-8d64c4f8153d",
+      "name": "Upload to YouTube2",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        20,
+        840
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "EgNieDQ90OkszRrY",
+          "name": "WealthOrbit"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for Google Sheets\nconst uploadResult = $input.first().json;\nconst videoData = $node['Extract Video URL2'].first().json;\n\nconst videoId = uploadResult.id;\nconst videoUrl = `https://youtube.com/shorts/${videoId}`;\n\nreturn {\n  'Channel Name': videoData.channelName,\n  'Video Title': videoData.title,\n  'Video Description': videoData.description.substring(0, 150) + '...',\n  'Video URL': videoUrl,\n  'Upload Timestamp': new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),\n  'Status': '✅ Done',\n  'Video ID': videoId\n};"
+      },
+      "id": "1266a78e-b8a9-4ad1-8386-1d60fc925a22",
+      "name": "Format for Logging2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        840
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $node['Config Variables2'].json.sheetsId }}",
+        "sheetName": "Upload Log",
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "id": "739733a7-de8b-4e7d-a23f-a4d8808268bc",
+      "name": "Log to Google Sheets2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        460,
+        840
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5M05KBuhK3CdA65f",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "lakshmikanthank2006@gmail.com",
+        "toEmail": "={{ $node['Config Variables2'].json.notificationEmail }}",
+        "subject": "=✅ YouTube Short Published - {{ $json['Channel Name'] }}",
+        "options": {}
+      },
+      "id": "6514b08d-ebc7-4737-b291-59bf8062005b",
+      "name": "Success Email Notification2",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        680,
+        840
+      ],
+      "webhookId": "c6982219-75d4-4eda-a91c-89a31c8713cc",
+      "credentials": {
+        "smtp": {
+          "id": "NzbxalDeLK79qm9I",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a content creator for CyberPulse, a tech and AI YouTube Shorts channel.\nGenerate a short, captivating 30–45 second video idea about cutting-edge AI tools, cybersecurity hacks, ethical hacking tips, or mind-blowing tech trends.\n\nThe video must:\n\nStart with a powerful 3-second hook that shocks or intrigues tech lovers.\n\nDeliver value or curiosity within 30 seconds.\n\nEnd with a call to action like “Follow for more hidden AI secrets.”\n\nInclude:\n\ntitle: attention-grabbing tech headline\n\nhook: short opening line that captures curiosity\n\nscript: full short video script (voice + quick scene notes)\n\ntags: 5–10 SEO tags for AI, cybersecurity, hacking, tech news\n\nhashtags: relevant hashtags (e.g., #AI #Hacking #CyberSecurity #TechNews)\n\nOutput only valid JSON in this exact format:\n\n{ \"title\": \"...\", \"hook\": \"...\", \"script\": \"...\", \"tags\": [\"...\"], \"hashtags\": \"#...\" }",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -2140,
+        -920
+      ],
+      "id": "471d5d0f-3ef9-4807-8f3c-9b97db1209f1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -2040,
+        -700
+      ],
+      "id": "83ec90ce-05c1-47ee-9442-4f6672fbcb33",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Kcsm9CpHgJ6beMSi",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert short-form scriptwriter for a motivational YouTube Shorts channel called MindRift.\nGenerate a powerful, emotional, and engaging 30–45 second video script that immediately hooks viewers in the first 3 seconds, tells an inspiring story or life lesson, and ends with a strong call to action to follow or subscribe.\n\nYour response must include:\n\ntitle: a catchy, emotionally-charged title\n\nhook: a 1–2 sentence intense opener that grabs attention\n\nscript: full short-form script with brief scene or voice cues (no camera jargon, just impactful lines)\n\ntags: 5–10 SEO tags relevant to motivation, success, mindset, and discipline\n\nhashtags: matching social hashtags (like #motivation #success #mindset)\n\nThe final output must be valid JSON in this exact format (no markdown, no explanations):\n\n{ \"title\": \"...\", \"hook\": \"...\", \"script\": \"...\", \"tags\": [\"...\"], \"hashtags\": \"#...\" }",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -2120,
+        -65
+      ],
+      "id": "d9d12661-c163-475d-a4da-46fdfd55ece2",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -2032,
+        155
+      ],
+      "id": "4c701f3a-97d2-4f83-a51c-4b70920bc986",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Kcsm9CpHgJ6beMSi",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a viral content strategist for WealthOrbit, a YouTube Shorts channel focused on money, financial freedom, and side hustles.\nGenerate an engaging, value-packed 30–45 second short that teaches a quick financial tip, a hidden side hustle idea, or a money mindset shift.\n\nThe video should:\n\nBegin with a catchy 3-second hook that stops scrolling.\n\nExplain the concept clearly and quickly.\n\nEnd with a call to action like “Follow for daily money hacks.”\n\nInclude:\n\ntitle: scroll-stopping, curiosity-driven title\n\nhook: short, strong opener\n\nscript: full 30–45 sec short video script\n\ntags: 5–10 SEO tags for money, side hustle, financial freedom, and business\n\nhashtags: financial hashtags (e.g., #SideHustle #Finance #MoneyTips #Wealth)\n\nOutput must be valid JSON only in this exact format:\n\n{ \"title\": \"...\", \"hook\": \"...\", \"script\": \"...\", \"tags\": [\"...\"], \"hashtags\": \"#...\" }",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -2120,
+        860
+      ],
+      "id": "e45186ba-e2ca-4244-b2da-d33e39e62ee3",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -2020,
+        1080
+      ],
+      "id": "caf0779c-15a8-495c-b468-c3fd22b8ad27",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Kcsm9CpHgJ6beMSi",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## FLOW 1 For Tech Channel\n\n",
+        "height": 620,
+        "width": 3400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2360,
+        -1060
+      ],
+      "typeVersion": 1,
+      "id": "4293ad9a-1988-42df-ad7a-4180b920bbac",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Flow 2 For Motivational Channel",
+        "height": 620,
+        "width": 3400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2360,
+        -220
+      ],
+      "typeVersion": 1,
+      "id": "1a98112e-62c5-4b1c-9f0d-0b011d3db5d7",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Flow 3 For Financial Channel",
+        "height": 620,
+        "width": 3400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2360,
+        720
+      ],
+      "typeVersion": 1,
+      "id": "6e543303-67a6-40ff-bb57-fa966d68a45b",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Error Alert\n",
+        "height": 500,
+        "width": 920
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2340,
+        1460
+      ],
+      "typeVersion": 1,
+      "id": "a217be6b-6d91-45a7-b271-37ba3b4008f8",
+      "name": "Sticky Note3"
+    }
+  ],
+  "connections": {
+    "Daily Trigger 9AM IST": {
+      "main": [
+        [
+          {
+            "node": "Config Variables",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Config Variables1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Config Variables2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Variables": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Format Content": {
+      "main": [
+        [
+          {
+            "node": "Start Video Generation (Veo 3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Video Generation (Veo 3)": {
+      "main": [
+        [
+          {
+            "node": "Save Operation ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Operation ID": {
+      "main": [
+        [
+          {
+            "node": "Wait 45s (Initial)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 45s (Initial)": {
+      "main": [
+        [
+          {
+            "node": "Check Video Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Video Status": {
+      "main": [
+        [
+          {
+            "node": "Is Video Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Video Ready?": {
+      "main": [
+        [
+          {
+            "node": "Extract Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 30s (Retry)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30s (Retry)": {
+      "main": [
+        [
+          {
+            "node": "Check Video Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video URL": {
+      "main": [
+        [
+          {
+            "node": "Download Video File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video File": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Format for Logging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format for Logging": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Success Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Format Error Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Details": {
+      "main": [
+        [
+          {
+            "node": "Error Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Variables1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Format Content1": {
+      "main": [
+        [
+          {
+            "node": "Start Video Generation (Veo 3)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Video Generation (Veo 3)1": {
+      "main": [
+        [
+          {
+            "node": "Save Operation ID1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Operation ID1": {
+      "main": [
+        [
+          {
+            "node": "Wait 45s (Initial)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 45s (Initial)1": {
+      "main": [
+        [
+          {
+            "node": "Check Video Status1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Video Status1": {
+      "main": [
+        [
+          {
+            "node": "Is Video Ready?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Video Ready?1": {
+      "main": [
+        [
+          {
+            "node": "Extract Video URL1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 30s (Retry)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30s (Retry)1": {
+      "main": [
+        [
+          {
+            "node": "Check Video Status1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video URL1": {
+      "main": [
+        [
+          {
+            "node": "Download Video File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video File1": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube1": {
+      "main": [
+        [
+          {
+            "node": "Format for Logging1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format for Logging1": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets1": {
+      "main": [
+        [
+          {
+            "node": "Success Email Notification1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Variables2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Format Content2": {
+      "main": [
+        [
+          {
+            "node": "Start Video Generation (Veo 3)2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Video Generation (Veo 3)2": {
+      "main": [
+        [
+          {
+            "node": "Save Operation ID2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Operation ID2": {
+      "main": [
+        [
+          {
+            "node": "Wait 45s (Initial)2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 45s (Initial)2": {
+      "main": [
+        [
+          {
+            "node": "Check Video Status2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Video Status2": {
+      "main": [
+        [
+          {
+            "node": "Is Video Ready?2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Video Ready?2": {
+      "main": [
+        [
+          {
+            "node": "Extract Video URL2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 30s (Retry)2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30s (Retry)2": {
+      "main": [
+        [
+          {
+            "node": "Check Video Status2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video URL2": {
+      "main": [
+        [
+          {
+            "node": "Download Video File2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video File2": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube2": {
+      "main": [
+        [
+          {
+            "node": "Format for Logging2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format for Logging2": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets2": {
+      "main": [
+        [
+          {
+            "node": "Success Email Notification2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse & Format Content1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Parse & Format Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Parse & Format Content2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "720db2ae29076ebbc81a391e5e975c206542700bcdb98887cbb74c6509a50d88"
+  }
+}
